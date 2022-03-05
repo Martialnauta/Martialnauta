@@ -1,6 +1,6 @@
 - 👋 Hi, I’m @Martialnauta
 - 👀 I’m interested in all is interesting
-- 🌱 I’m currently learning Pythin
+- 🌱 I’m currently learning Python
 - 💞️ I’m looking to collaborate
 - 📫 How to reach me 
 
