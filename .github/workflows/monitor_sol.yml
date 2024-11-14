@@ -1,0 +1,36 @@
+name: Monitor Solana Blockchain
+
+# Trigger del workflow: ogni volta che viene fatto push su master/main o ogni giorno a mezzanotte
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Esegui ogni giorno a mezzanotte UTC
+  push:
+    branches:
+      - main  # Esegui anche su push nella branch 'main'
+
+jobs:
+  monitor_blockchain:
+    runs-on: ubuntu-latest  # Usa un runner Ubuntu
+
+    steps:
+    # 1. Controlla il codice dal repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 2. Imposta l'ambiente Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'  # Usa la versione di Python che desideri (ad esempio, 3.9)
+
+    # 3. Installa le dipendenze
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install solana  # Installa la libreria solana per Python
+        # Puoi aggiungere altre dipendenze se il tuo script le richiede
+
+    # 4. Esegui lo script Python
+    - name: Run the script
+      run: |
+        python monitor_sol.py  # Esegui il tuo script Python
