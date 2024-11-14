@@ -14,11 +14,11 @@ jobs:
     steps:
       # Checkout del codice
       - name: Checkout code
-        uses: actions/checkout@v3  # Usa la versione più recente di actions/checkout
+        uses: actions/checkout@v4  # Aggiornato alla versione v4 per compatibilità con node20
       
       # Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3  # Aggiornato alla versione v3 per compatibilità con node20
         with:
           python-version: '3.x'
 
@@ -39,5 +39,3 @@ jobs:
         with:
           name: wallet-analysis
           path: analisi_*.txt  # Carica tutti i file che corrispondono al pattern
-
-
