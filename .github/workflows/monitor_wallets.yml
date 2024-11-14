@@ -1,4 +1,5 @@
-name: Monitor Solana Blockchain
+name: Monitoraggio Wallet e Token
+
 on:
   schedule:
     - cron: '0 0 * * *'  # Esegui ogni giorno a mezzanotte
@@ -13,11 +14,11 @@ jobs:
     steps:
       # Checkout del codice
       - name: Checkout code
-        uses: actions/checkout@v4  # Aggiornato alla versione v4 per compatibilità con node20
+        uses: actions/checkout@v4  # Usa la versione più recente v4 di actions/checkout
       
-      # Set up Python (usa la versione v4 per compatibilità con node20)
+      # Set up Python (versione v4 per compatibilità con node20)
       - name: Set up Python
-        uses: actions/setup-python@v4  # Aggiornato alla versione v4 per compatibilità con node20
+        uses: actions/setup-python@v4  # Versione aggiornata per Node.js 20
         with:
           python-version: '3.x'
 
@@ -34,7 +35,7 @@ jobs:
 
       # Carica il file di analisi come artefatto
       - name: Upload analysis file as artifact
-        uses: actions/upload-artifact@v3  # Usa la versione più recente (v3)
+        uses: actions/upload-artifact@v3  # Usa la versione v3 per compatibilità con Node.js 20
         with:
           name: wallet-analysis
           path: analisi_*.txt  # Carica tutti i file che corrispondono al pattern
