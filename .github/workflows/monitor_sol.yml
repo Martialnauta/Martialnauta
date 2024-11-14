@@ -1,36 +1,42 @@
 name: Monitor Solana Blockchain
 
-# Trigger del workflow: ogni volta che viene fatto push su master/main o ogni giorno a mezzanotte
 on:
   schedule:
-    - cron: '0 0 * * *'  # Esegui ogni giorno a mezzanotte UTC
+    - cron: '0 0 * * *'  # Esegui ogni giorno a mezzanotte
   push:
     branches:
-      - main  # Esegui anche su push nella branch 'main'
+      - main  # Oppure usa un altro trigger come `workflow_dispatch` per eseguirlo manualmente
 
 jobs:
-  monitor_blockchain:
-    runs-on: ubuntu-latest  # Usa un runner Ubuntu
-
+  monitor:
+    runs-on: ubuntu-latest
+    
     steps:
-    # 1. Controlla il codice dal repository
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # Checkout del codice
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
 
-    # 2. Imposta l'ambiente Python
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'  # Usa la versione di Python che desideri (ad esempio, 3.9)
+      # Installa le dipendenze
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install solana
 
-    # 3. Installa le dipendenze
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install solana  # Installa la libreria solana per Python
-        # Puoi aggiungere altre dipendenze se il tuo script le richiede
+      # Esegui lo script Python
+      - name: Run the script
+        run: |
+          python monitor_wallets.py  # Modifica con il nome del tuo script
 
-    # 4. Esegui lo script Python
-    - name: Run the script
-      run: |
-        python monitor_sol.py  # Esegui il tuo script Python
+      # Carica il file di analisi come artefatto
+      - name: Upload analysis file as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wallet-analysis
+          path: analisi_*.txt  # Carica tutti i file che corrispondono al pattern
+
