@@ -1,11 +1,12 @@
 from solana.rpc.api import Client
+from solana.publickey import PublicKey
 import time
 from datetime import datetime
 
 # Impostare il client Solana (usiamo l'endpoint di Solana Explorer)
 client = Client("https://api.mainnet-beta.solana.com")
 
-# Elenco di indirizzi da monitorare
+# Elenco di indirizzi da monitorare (tutti i wallet)
 addresses = [
     "8zFZHuSRuDpuAR7J6FzwyF3vKNx4CVW3DFHJerQhc7Zd",
     "3STS7sBe5xzMycHBGx1HJNzPtry1MsgQV6wDxkMt6iV7",
@@ -34,7 +35,8 @@ excluded_tokens = [
 
 # Funzione per recuperare le transazioni di un indirizzo
 def get_transactions(address):
-    response = client.get_signatures_for_address(address)
+    pubkey = PublicKey(address)  # Converti l'indirizzo in Pubkey
+    response = client.get_signatures_for_address(pubkey)
     return response['result']
 
 # Funzione per verificare se una transazione coinvolge un token escludendo SOL, USDT, USDC
@@ -107,5 +109,4 @@ def track_recurring_tokens():
 
 # Avvia il monitoraggio
 track_recurring_tokens()
-
 
