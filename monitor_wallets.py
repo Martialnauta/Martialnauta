@@ -1,7 +1,6 @@
+import time
 from solana.rpc.api import Client
 from solana.publickey import PublicKey
-import time
-import os
 from datetime import datetime
 
 # Impostare il client Solana (usiamo l'endpoint di Solana Explorer)
@@ -27,97 +26,67 @@ addresses = [
     "5UmdfKDoowTJ5DBYRUyq8HMH8KLuUb35Ko8rzrEuh5gy"
 ]
 
-# Token da escludere (SOL, USDT, USDC)
-excluded_tokens = [
-    "So11111111111111111111111111111111111111112",  # SOL
-    "Es9vMFrjJh9uQU6hdXw6dTmLJ2Vkcxyg2HgsF1ihy4rb",  # USDT (Tether)
-    "EPjFWdd5Vq2X4lqGp8j3RysA6brrx3N1Wq2Q7jZPjp9f"   # USDC (USD Coin)
-]
-
-# Funzione per recuperare le transazioni di un indirizzo
-def get_transactions(address):
-    try:
-        response = client.get_signatures_for_address(address)
-        # Verifica che la risposta sia valida
-        if response.get('result') is None:
-            print(f"Nessuna transazione trovata per l'indirizzo {address}")
-            return []
-        return response['result']
-    except Exception as e:
-        print(f"Errore nel recuperare le transazioni per {address}: {e}")
-        return []
+# Funzione per recuperare le transazioni con ritentativi
+def get_transactions(address, retries=3, delay=5):
+    attempt = 0
+    while attempt < retries:
+        try:
+            response = client.get_signatures_for_address(address)
+            if response.get('result') is None:
+                print(f"Nessuna transazione trovata per l'indirizzo {address}")
+                return []
+            return response['result']
+        except Exception as e:
+            attempt += 1
+            print(f"Errore nel recuperare le transazioni per {address}: {e}. Tentativo {attempt}/{retries}")
+            time.sleep(delay)
+    print(f"Errore persistente nel recuperare le transazioni per {address}")
+    return []
 
 # Funzione per verificare se una transazione coinvolge un token escludendo SOL, USDT, USDC
 def is_non_excluded_token_transaction(transaction):
     token_mints = []
-    
-    # Controlla se 'meta' è presente nel dizionario della transazione
     if 'meta' in transaction and 'postBalances' in transaction['meta']:
-        # Cerca tra i token della transazione
         for item in transaction['meta']['postBalances']:
             if 'mint' in item and item['mint'] not in excluded_tokens:
                 token_mints.append(item['mint'])
-    
     return token_mints
-
-# Funzione per analizzare le transazioni e distinguere acquisti e vendite
-def analyze_transaction(tx, token_mints, address, token_count):
-    # Separare le transazioni di acquisto (ricezione) e vendita (invio)
-    for mint in token_mints:
-        if mint not in token_count:
-            token_count[mint] = {'acquisti': 0, 'vendite': 0}
-        
-        # Identifica se l'indirizzo è il mittente (vendita) o il destinatario (acquisto)
-        if tx['transaction']['message']['accountKeys'][0] == address:
-            # Se l'indirizzo è il mittente, è una vendita
-            token_count[mint]['vendite'] += 1
-        else:
-            # Se l'indirizzo è il destinatario, è un acquisto
-            token_count[mint]['acquisti'] += 1
 
 # Funzione per monitorare i token ricorrenti e analizzare acquisti e vendite
 def track_recurring_tokens():
-    # Dizionario per memorizzare la frequenza di ciascun token
     token_count = {}
     
-    # Monitoraggio continuo delle transazioni
     while True:
         for address in addresses:
             transactions = get_transactions(address)
+            if not transactions:
+                continue
             for tx in transactions:
                 token_mints = is_non_excluded_token_transaction(tx)
-                
-                # Se sono stati trovati token (escludendo SOL, USDT, USDC)
                 if token_mints:
                     for mint in token_mints:
                         if mint not in token_count:
                             token_count[mint] = {'acquisti': 0, 'vendite': 0}
-                        
-                        # Analizza le transazioni per acquisti e vendite
                         analyze_transaction(tx, token_mints, address, token_count)
-        
-        # Ordinare i token per frequenza e stampare i più comuni
+
+        # Ordinare i token per frequenza
         print("Token Ricorrenti:")
         sorted_tokens = sorted(token_count.items(), key=lambda item: item[1]['acquisti'], reverse=True)
-        
-        for token, counts in sorted_tokens[:10]:  # Mostra i 10 token più ricorrenti
+        for token, counts in sorted_tokens[:10]:
             print(f"Token: {token}, Acquisti: {counts['acquisti']}, Vendite: {counts['vendite']}")
-            
-            # Analisi speculativa (più acquisti che vendite)
             if counts['acquisti'] > counts['vendite']:
                 print(f"Possibile speculazione: Più acquisti di {token} rispetto alle vendite.")
-
+        
         # Salva i dati in un file con il nome della data corrente
         filename = datetime.now().strftime("%Y-%m-%d") + "_analysis.txt"
         with open(filename, 'w') as file:
             file.write("Analisi Wallet e Token:\n")
-            for token, counts in sorted_tokens[:10]:  # Mostra i 10 token più ricorrenti nel file
+            for token, counts in sorted_tokens[:10]:
                 file.write(f"Token: {token}, Acquisti: {counts['acquisti']}, Vendite: {counts['vendite']}\n")
                 if counts['acquisti'] > counts['vendite']:
                     file.write(f"Possibile speculazione: Più acquisti di {token} rispetto alle vendite.\n")
         
-        # Aspetta prima di eseguire la prossima iterazione
         time.sleep(10)
 
-# Avvia il monitoraggio
 track_recurring_tokens()
+
