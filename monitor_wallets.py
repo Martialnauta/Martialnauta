@@ -1,12 +1,13 @@
 from solana.rpc.api import Client
 from solana.publickey import PublicKey
 import time
+import os
 from datetime import datetime
 
 # Impostare il client Solana (usiamo l'endpoint di Solana Explorer)
 client = Client("https://api.mainnet-beta.solana.com")
 
-# Elenco di indirizzi da monitorare (tutti i wallet)
+# Elenco di indirizzi da monitorare
 addresses = [
     "8zFZHuSRuDpuAR7J6FzwyF3vKNx4CVW3DFHJerQhc7Zd",
     "3STS7sBe5xzMycHBGx1HJNzPtry1MsgQV6wDxkMt6iV7",
@@ -23,7 +24,7 @@ addresses = [
     "JDNooC8zhQcjNq8tsUcS9cdGiuAdR5gishqUVEVMARVz",
     "3drY9kTvdcRXHEDUkqncyXAVqEnFLDHckiDPM7ApegmT",
     "5B4bSL2bbd9y2Kp1SfjkxWUzdFTC2ysBaHpKuHpUESQH",
-    "5UmdfKDoowTJ5DBYRUyq8HMH8KLuUb35Ko8rzrEuh5gy",
+    "5UmdfKDoowTJ5DBYRUyq8HMH8KLuUb35Ko8rzrEuh5gy"
 ]
 
 # Token da escludere (SOL, USDT, USDC)
@@ -35,8 +36,7 @@ excluded_tokens = [
 
 # Funzione per recuperare le transazioni di un indirizzo
 def get_transactions(address):
-    pubkey = PublicKey(address)  # Converti l'indirizzo in Pubkey
-    response = client.get_signatures_for_address(pubkey)
+    response = client.get_signatures_for_address(address)
     return response['result']
 
 # Funzione per verificare se una transazione coinvolge un token escludendo SOL, USDT, USDC
@@ -83,30 +83,31 @@ def track_recurring_tokens():
                         if mint not in token_count:
                             token_count[mint] = {'acquisti': 0, 'vendite': 0}
                         
-                        # Analizza la transazione per acquisti e vendite
+                        # Analizza le transazioni per acquisti e vendite
                         analyze_transaction(tx, token_mints, address, token_count)
         
         # Ordinare i token per frequenza e stampare i più comuni
         print("Token Ricorrenti:")
         sorted_tokens = sorted(token_count.items(), key=lambda item: item[1]['acquisti'], reverse=True)
         
-        # Crea il nome del file con la data corrente
-        today = datetime.today().strftime('%Y-%m-%d')
-        filename = f"analisi_{today}.txt"
-        
-        # Scrivere i risultati in un file di testo
-        with open(filename, "w") as file:
-            file.write(f"Analisi dei Wallet - {today}\n\n")
-            for token, counts in sorted_tokens[:10]:  # Mostra i 10 token più ricorrenti
+        for token, counts in sorted_tokens[:10]:  # Mostra i 10 token più ricorrenti
+            print(f"Token: {token}, Acquisti: {counts['acquisti']}, Vendite: {counts['vendite']}")
+            
+            # Analisi speculativa (più acquisti che vendite)
+            if counts['acquisti'] > counts['vendite']:
+                print(f"Possibile speculazione: Più acquisti di {token} rispetto alle vendite.")
+
+        # Salva i dati in un file con il nome della data corrente
+        filename = datetime.now().strftime("%Y-%m-%d") + "_analysis.txt"
+        with open(filename, 'w') as file:
+            file.write("Analisi Wallet e Token:\n")
+            for token, counts in sorted_tokens[:10]:  # Mostra i 10 token più ricorrenti nel file
                 file.write(f"Token: {token}, Acquisti: {counts['acquisti']}, Vendite: {counts['vendite']}\n")
-                
-                # Analisi speculativa (più acquisti che vendite)
                 if counts['acquisti'] > counts['vendite']:
                     file.write(f"Possibile speculazione: Più acquisti di {token} rispetto alle vendite.\n")
         
-        # Pausa prima di eseguire di nuovo il ciclo
-        time.sleep(10)  # Controlla ogni 10 secondi
+        # Aspetta prima di eseguire la prossima iterazione
+        time.sleep(10)
 
 # Avvia il monitoraggio
 track_recurring_tokens()
-
