@@ -14,8 +14,8 @@ jobs:
     steps:
       # Checkout del codice
       - name: Checkout code
-        uses: actions/checkout@v2
-        
+        uses: actions/checkout@v3  # Usa la versione più recente di actions/checkout
+      
       # Set up Python
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -35,8 +35,9 @@ jobs:
 
       # Carica il file di analisi come artefatto
       - name: Upload analysis file as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3  # Usa la versione più recente (v3)
         with:
           name: wallet-analysis
           path: analisi_*.txt  # Carica tutti i file che corrispondono al pattern
+
 
