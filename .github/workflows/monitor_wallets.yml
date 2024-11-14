@@ -35,7 +35,8 @@ jobs:
 
       # Carica il file di analisi come artefatto
       - name: Upload analysis file as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wallet-analysis
           path: analisi_*.txt  # Carica tutti i file che corrispondono al pattern
+
