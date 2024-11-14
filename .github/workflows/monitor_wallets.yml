@@ -5,7 +5,7 @@ on:
     - cron: '0 0 * * *'  # Esegui ogni giorno a mezzanotte
   push:
     branches:
-      - main  # Oppure usa un altro trigger come `workflow_dispatch` per eseguirlo manualmente
+      - main
 
 jobs:
   monitor:
@@ -22,15 +22,18 @@ jobs:
         with:
           python-version: '3.x'
 
-      # Installa le dipendenze
-      - name: Install dependencies
+      # Set up virtual environment and install dependencies
+      - name: Set up virtual environment and install dependencies
         run: |
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install --upgrade pip
-          pip install solana
+          pip install solana pycryptodome requests
 
       # Esegui lo script Python
       - name: Run the script
         run: |
+          source venv/bin/activate
           python monitor_wallets.py  # Modifica con il nome del tuo script
 
       # Carica il file di analisi come artefatto
