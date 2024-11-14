@@ -28,7 +28,13 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           python -m pip install --upgrade pip
-          pip install solana pycryptodome requests
+          pip install solana==0.22.0 pycryptodome requests
+
+      # Verify Solana installation
+      - name: Verify Solana installation
+        run: |
+          source venv/bin/activate
+          python -c "from solana.publickey import PublicKey; print('Solana module is installed correctly')"
 
       # Esegui lo script Python
       - name: Run the script
