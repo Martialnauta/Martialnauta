@@ -22,4 +22,5 @@ jobs:
         pip install solana
 
     - name: Run script
-
+      run: |
+        python monitor_wallets.py  # Assicurati che il tuo script si chiami "your_script.py" o modifica questo nome
