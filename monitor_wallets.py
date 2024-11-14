@@ -1,12 +1,13 @@
 import time
+from datetime import datetime, timedelta, timezone
 from solana.rpc.api import Client
-from solana.publickey import PublicKey
-from datetime import datetime, timedelta
+from solana.exceptions import SolanaRpcException
 
-# Impostare il client Solana (usiamo l'endpoint di Solana Explorer)
-client = Client("https://api.mainnet-beta.solana.com")
+# Imposta l'endpoint dell'API
+API_ENDPOINT = "https://api.mainnet-beta.solana.com/"
+client = Client(API_ENDPOINT)
 
-# Elenco di indirizzi da monitorare
+# Elenco di wallet da analizzare
 addresses = [
     "8zFZHuSRuDpuAR7J6FzwyF3vKNx4CVW3DFHJerQhc7Zd",
     "3STS7sBe5xzMycHBGx1HJNzPtry1MsgQV6wDxkMt6iV7",
@@ -26,88 +27,65 @@ addresses = [
     "5UmdfKDoowTJ5DBYRUyq8HMH8KLuUb35Ko8rzrEuh5gy"
 ]
 
-# Funzione per recuperare le transazioni degli ultimi 30 giorni con ritentativi
-def get_recent_transactions(address, retries=3, delay=5, days=30):
-    attempt = 0
-    end_time = datetime.utcnow()
-    start_time = end_time - timedelta(days=days)
-    while attempt < retries:
-        try:
-            response = client.get_signatures_for_address(
-                PublicKey(address),
-                until=None
-            )
-            if response.get('result') is None:
-                print(f"Nessuna transazione trovata per l'indirizzo {address}")
-                return []
-            
-            recent_transactions = []
-            for tx in response['result']:
-                block_time = datetime.utcfromtimestamp(tx['blockTime'])
-                if start_time <= block_time <= end_time:
-                    recent_transactions.append(tx)
-            
-            return recent_transactions
-        except Exception as e:
-            attempt += 1
-            print(f"Errore nel recuperare le transazioni per {address}: {e}. Tentativo {attempt}/{retries}")
-            time.sleep(delay)
-    print(f"Errore persistente nel recuperare le transazioni per {address}")
-    return []
-
-# Funzione per verificare i token detenuti da un indirizzo
-def get_tokens_in_wallet(address):
+def get_wallet_tokens(wallet_address):
+    """Recupera i token detenuti da un wallet."""
     try:
-        response = client.get_token_accounts_by_owner(PublicKey(address), {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"})
+        response = client.get_token_accounts_by_owner(wallet_address, {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"})
         tokens = []
         for account in response['result']['value']:
-            token_address = account['account']['data']['parsed']['info']['mint']
-            tokens.append(token_address)
+            parsed_data = account['account']['data']['parsed']['info']
+            token_address = parsed_data.get('mint')
+            if token_address:
+                tokens.append(token_address)
         return tokens
-    except Exception as e:
-        print(f"Errore nel recuperare i token per il wallet {address}: {e}")
+    except SolanaRpcException as e:
+        print(f"Errore nel recuperare i token per il wallet {wallet_address}: {e}")
         return []
 
-# Funzione per analizzare i token e le transazioni recenti
+def get_recent_transactions(wallet_address, days=30):
+    """Recupera le transazioni dell'ultimo mese."""
+    try:
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=days)
+
+        response = client.get_confirmed_signature_for_address2(wallet_address, limit=1000)
+        transactions = response['result']
+        recent_transactions = []
+
+        for tx in transactions:
+            block_time = datetime.fromtimestamp(tx['blockTime'], timezone.utc)
+            if start_time <= block_time <= end_time:
+                recent_transactions.append(tx)
+
+        return recent_transactions
+    except SolanaRpcException as e:
+        print(f"Errore nel recuperare le transazioni per il wallet {wallet_address}: {e}")
+        return []
+
 def analyze_wallets():
-    token_summary = {}
-    for address in addresses:
-        print(f"\nAnalizzando il wallet: {address}")
+    """Analizza i wallet specificati."""
+    for wallet in wallets:
+        print(f"Analizzando il wallet: {wallet}")
         
         # Recupera i token detenuti
-        tokens = get_tokens_in_wallet(address)
+        tokens = get_wallet_tokens(wallet)
         print(f"Token detenuti: {tokens}")
         
-        # Recupera transazioni recenti
-        recent_transactions = get_recent_transactions(address)
+        # Recupera le transazioni recenti
+        recent_transactions = get_recent_transactions(wallet)
         print(f"Transazioni recenti trovate: {len(recent_transactions)}")
-        
-        for tx in recent_transactions:
-            tx_detail = client.get_confirmed_transaction(tx['signature'])
-            if not tx_detail or 'meta' not in tx_detail:
-                continue
-            
-            # Analizza i bilanci post-transazione
-            post_balances = tx_detail['meta']['postTokenBalances']
-            for balance in post_balances:
-                mint = balance['mint']
-                owner = balance.get('owner', 'N/A')
-                
-                if mint not in token_summary:
-                    token_summary[mint] = {'acquisti': 0, 'vendite': 0, 'holder': set()}
-                
-                token_summary[mint]['holder'].add(owner)
-                
-                if owner == address:  # Entrata
-                    token_summary[mint]['acquisti'] += 1
-                else:  # Uscita
-                    token_summary[mint]['vendite'] += 1
-        
-    # Analizza i token comuni
-    sorted_tokens = sorted(token_summary.items(), key=lambda x: x[1]['acquisti'], reverse=True)
-    print("\nToken comuni negli ultimi 30 giorni:")
-    for token, stats in sorted_tokens:
-        print(f"Token: {token}, Acquisti: {stats['acquisti']}, Vendite: {stats['vendite']}, Holder unici: {len(stats['holder'])}")
 
-# Avvia l'analisi
-analyze_wallets()
+        for tx in recent_transactions:
+            try:
+                tx_detail = client.get_confirmed_transaction(tx['signature'])
+                if not tx_detail or 'meta' not in tx_detail:
+                    continue
+                print(f"Dettaglio transazione {tx['signature']}: {tx_detail}")
+            except Exception as e:
+                print(f"Errore nel recuperare i dettagli della transazione {tx['signature']}: {e}")
+            
+            # Pausa per evitare l'errore 429
+            time.sleep(0.1)
+
+if __name__ == "__main__":
+    analyze_wallets()
