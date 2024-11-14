@@ -9,6 +9,21 @@ client = Client("https://api.mainnet-beta.solana.com")
 addresses = [
     "8zFZHuSRuDpuAR7J6FzwyF3vKNx4CVW3DFHJerQhc7Zd",
     "3STS7sBe5xzMycHBGx1HJNzPtry1MsgQV6wDxkMt6iV7",
+    "4K8zXYyPYVqTtnXe7bU3fThEUpwzgzP9ZB19MS4cWPvN",
+    "HbxY4qVrKftfsKiMQ5wPvRLKUMDTRBrVRhBLv6mDzcF8",
+    "ASmC3E5hwp4p7GDnQFuE5RUKcPaUsrwmnrFohcmnZaPh",
+    "8v2tXQVEQcwhGYUX7728iKwb61TJ5mKDGjBdw9gmRcij",
+    "3ZEA5o1eb9PWUmJg1CucyXPS1jud2o1b7558uQpAG2B1",
+    "7UNP1m8bhjyTBSBWoFJQvsyRarWGziP6UhesstBCfA4Y",
+    "3hB6a7V2YogLdVwwnQyLFH3u1wu8Gnj8bhG32D4YXUHb",
+    "214567edYgNcFnEpnW11z39GZfUdo47mc61gDZpi7HNB",
+    "4d9mokpWNLD5mTfutxAbKojedudfY5FCStCo1h8WR24c",
+    "5UiPHopgEiS1EX5dUB8Aueh1T8aif7PAqCRm9QLmJC7x",
+    "JDNooC8zhQcjNq8tsUcS9cdGiuAdR5gishqUVEVMARVz",
+    "3drY9kTvdcRXHEDUkqncyXAVqEnFLDHckiDPM7ApegmT",
+    "5B4bSL2bbd9y2Kp1SfjkxWUzdFTC2ysBaHpKuHpUESQH",
+    "5UmdfKDoowTJ5DBYRUyq8HMH8KLuUb35Ko8rzrEuh5gy",
+
     from solana.rpc.api import Client
 import time
 from datetime import datetime
