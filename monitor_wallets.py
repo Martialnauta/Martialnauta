@@ -1,7 +1,7 @@
 import time
 from solana.rpc.api import Client
 from solana.publickey import PublicKey
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Impostare il client Solana (usiamo l'endpoint di Solana Explorer)
 client = Client("https://api.mainnet-beta.solana.com")
@@ -26,16 +26,28 @@ addresses = [
     "5UmdfKDoowTJ5DBYRUyq8HMH8KLuUb35Ko8rzrEuh5gy"
 ]
 
-# Funzione per recuperare le transazioni con ritentativi
-def get_transactions(address, retries=3, delay=5):
+# Funzione per recuperare le transazioni degli ultimi 30 giorni con ritentativi
+def get_recent_transactions(address, retries=3, delay=5, days=30):
     attempt = 0
+    end_time = datetime.utcnow()
+    start_time = end_time - timedelta(days=days)
     while attempt < retries:
         try:
-            response = client.get_signatures_for_address(address)
+            response = client.get_signatures_for_address(
+                PublicKey(address),
+                until=None
+            )
             if response.get('result') is None:
                 print(f"Nessuna transazione trovata per l'indirizzo {address}")
                 return []
-            return response['result']
+            
+            recent_transactions = []
+            for tx in response['result']:
+                block_time = datetime.utcfromtimestamp(tx['blockTime'])
+                if start_time <= block_time <= end_time:
+                    recent_transactions.append(tx)
+            
+            return recent_transactions
         except Exception as e:
             attempt += 1
             print(f"Errore nel recuperare le transazioni per {address}: {e}. Tentativo {attempt}/{retries}")
@@ -43,50 +55,59 @@ def get_transactions(address, retries=3, delay=5):
     print(f"Errore persistente nel recuperare le transazioni per {address}")
     return []
 
-# Funzione per verificare se una transazione coinvolge un token escludendo SOL, USDT, USDC
-def is_non_excluded_token_transaction(transaction):
-    token_mints = []
-    if 'meta' in transaction and 'postBalances' in transaction['meta']:
-        for item in transaction['meta']['postBalances']:
-            if 'mint' in item and item['mint'] not in excluded_tokens:
-                token_mints.append(item['mint'])
-    return token_mints
+# Funzione per verificare i token detenuti da un indirizzo
+def get_tokens_in_wallet(address):
+    try:
+        response = client.get_token_accounts_by_owner(PublicKey(address), {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"})
+        tokens = []
+        for account in response['result']['value']:
+            token_address = account['account']['data']['parsed']['info']['mint']
+            tokens.append(token_address)
+        return tokens
+    except Exception as e:
+        print(f"Errore nel recuperare i token per il wallet {address}: {e}")
+        return []
 
-# Funzione per monitorare i token ricorrenti e analizzare acquisti e vendite
-def track_recurring_tokens():
-    token_count = {}
-    
-    while True:
-        for address in addresses:
-            transactions = get_transactions(address)
-            if not transactions:
+# Funzione per analizzare i token e le transazioni recenti
+def analyze_wallets():
+    token_summary = {}
+    for address in addresses:
+        print(f"\nAnalizzando il wallet: {address}")
+        
+        # Recupera i token detenuti
+        tokens = get_tokens_in_wallet(address)
+        print(f"Token detenuti: {tokens}")
+        
+        # Recupera transazioni recenti
+        recent_transactions = get_recent_transactions(address)
+        print(f"Transazioni recenti trovate: {len(recent_transactions)}")
+        
+        for tx in recent_transactions:
+            tx_detail = client.get_confirmed_transaction(tx['signature'])
+            if not tx_detail or 'meta' not in tx_detail:
                 continue
-            for tx in transactions:
-                token_mints = is_non_excluded_token_transaction(tx)
-                if token_mints:
-                    for mint in token_mints:
-                        if mint not in token_count:
-                            token_count[mint] = {'acquisti': 0, 'vendite': 0}
-                        analyze_transaction(tx, token_mints, address, token_count)
-
-        # Ordinare i token per frequenza
-        print("Token Ricorrenti:")
-        sorted_tokens = sorted(token_count.items(), key=lambda item: item[1]['acquisti'], reverse=True)
-        for token, counts in sorted_tokens[:10]:
-            print(f"Token: {token}, Acquisti: {counts['acquisti']}, Vendite: {counts['vendite']}")
-            if counts['acquisti'] > counts['vendite']:
-                print(f"Possibile speculazione: Più acquisti di {token} rispetto alle vendite.")
+            
+            # Analizza i bilanci post-transazione
+            post_balances = tx_detail['meta']['postTokenBalances']
+            for balance in post_balances:
+                mint = balance['mint']
+                owner = balance.get('owner', 'N/A')
+                
+                if mint not in token_summary:
+                    token_summary[mint] = {'acquisti': 0, 'vendite': 0, 'holder': set()}
+                
+                token_summary[mint]['holder'].add(owner)
+                
+                if owner == address:  # Entrata
+                    token_summary[mint]['acquisti'] += 1
+                else:  # Uscita
+                    token_summary[mint]['vendite'] += 1
         
-        # Salva i dati in un file con il nome della data corrente
-        filename = datetime.now().strftime("%Y-%m-%d") + "_analysis.txt"
-        with open(filename, 'w') as file:
-            file.write("Analisi Wallet e Token:\n")
-            for token, counts in sorted_tokens[:10]:
-                file.write(f"Token: {token}, Acquisti: {counts['acquisti']}, Vendite: {counts['vendite']}\n")
-                if counts['acquisti'] > counts['vendite']:
-                    file.write(f"Possibile speculazione: Più acquisti di {token} rispetto alle vendite.\n")
-        
-        time.sleep(10)
+    # Analizza i token comuni
+    sorted_tokens = sorted(token_summary.items(), key=lambda x: x[1]['acquisti'], reverse=True)
+    print("\nToken comuni negli ultimi 30 giorni:")
+    for token, stats in sorted_tokens:
+        print(f"Token: {token}, Acquisti: {stats['acquisti']}, Vendite: {stats['vendite']}, Holder unici: {len(stats['holder'])}")
 
-track_recurring_tokens()
-
+# Avvia l'analisi
+analyze_wallets()
