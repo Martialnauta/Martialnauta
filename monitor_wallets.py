@@ -36,17 +36,27 @@ excluded_tokens = [
 
 # Funzione per recuperare le transazioni di un indirizzo
 def get_transactions(address):
-    response = client.get_signatures_for_address(address)
-    return response['result']
+    try:
+        response = client.get_signatures_for_address(address)
+        # Verifica che la risposta sia valida
+        if response.get('result') is None:
+            print(f"Nessuna transazione trovata per l'indirizzo {address}")
+            return []
+        return response['result']
+    except Exception as e:
+        print(f"Errore nel recuperare le transazioni per {address}: {e}")
+        return []
 
 # Funzione per verificare se una transazione coinvolge un token escludendo SOL, USDT, USDC
 def is_non_excluded_token_transaction(transaction):
     token_mints = []
     
-    # Cerca tra i token della transazione (cerca nel 'meta' per postBalances)
-    for item in transaction['meta']['postBalances']:
-        if item['mint'] not in excluded_tokens:
-            token_mints.append(item['mint'])
+    # Controlla se 'meta' è presente nel dizionario della transazione
+    if 'meta' in transaction and 'postBalances' in transaction['meta']:
+        # Cerca tra i token della transazione
+        for item in transaction['meta']['postBalances']:
+            if 'mint' in item and item['mint'] not in excluded_tokens:
+                token_mints.append(item['mint'])
     
     return token_mints
 
